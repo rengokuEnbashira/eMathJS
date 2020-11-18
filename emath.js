@@ -286,8 +286,25 @@ function epoly(coeffs){
 	return new epoly(out);
     }
     this.div = function(p){
-	var q = [];
-	var r = [];
+	var q, r;
+	var tmp = [];
+	var d1 = this.degree - p.degree;
+	var d2 = p.degree - 1;
+	var idx;
+	q = new Array(d1+1);
+	r = new Array(d2+1);
+	for(var i = 0;i<=this.degree;i++)
+	    tmp.push(this.coeffs[i]);
+	idx = this.degree;
+	for(var i = 0;i<=d1;i++){
+	    q[d1 - i] = tmp[idx]/p.coeffs[p.degree];
+	    for(var j=0;j<=p.degree;j++)
+		tmp[idx - j] -= q[d1 - i]*p.coeffs[p.degree - j];
+	    idx -= 1;
+	}
+	for(var i = 0;i<=d2;i++)
+	    r[i] = tmp[i];
+	return [new epoly(q),new epoly(r)];
     }
     this.scale = function(num){
 	var out = [];
@@ -295,9 +312,111 @@ function epoly(coeffs){
 	    out.push(this.coeffs[i]*num);
 	return new epoly(out);
     }
+    this.roots = function(maxIt){
+	var M = new ematrix(this.degree,this.degree);
+	var out;
+	M.zeros();
+	M.data[0][this.degree-1] = -this.coeffs[0]/this.coeffs[this.degree];
+	for(var i = 1;i<this.degree;i++){
+	    M.data[i][i-1] = 1;
+	    M.data[i][this.degree-1] = -this.coeffs[i]/this.coeffs[this.degree];
+	}
+	out = M.eig(maxIt);
+	return out[0].diag();
+    }
 }
 
-let a = new epoly([1,2,1]);
-let b = new epoly([1,1]);
-console.log(a.to_string());
-console.log(a.diff(b).to_string());
+function eode(){
+    this.linspace = function(t0,tf,N){
+	var h;
+	var t = [t0];
+	h = (tf - t0)/(N-1);
+	for(var i = 1;i<N;i++)
+	    t.push(t[i-1] + h);
+	return t;
+    }
+    this.euler = function(fun_f,y0,t0,dt){
+	var tmp = [];
+	var dy = fun_f(y0,t0);
+	for(var i = 0;i<y0.length;i++)
+	    tmp.push(y0[i] + dt*dy[i]);
+	return tmp;
+    }
+    this.rk4 = function(fun_f,y0,t0,dt){
+	var k1,k2,k3,k4;
+	var tmp = new Array(y0.length);
+	var h;
+	k1 = fun_f(y0,t0);
+	for(var i = 0;i<y0.length;i++)
+	    tmp[i] = y0[i] + dt*k1[i]/2;
+	k2 = fun_f(tmp,t0+dt/2);
+	for(var i = 0;i<y0.length;i++)
+	    tmp[i] = y0[i] + dt*k2[i]/2;
+	k3 = fun_f(tmp,t0+dt/2);
+	for(var i = 0;i<y0.length;i++)
+	    tmp[i] = y0[i] + dt*k3[i];
+	k4 = fun_f(tmp,t0+dt);
+	for(var i = 0;i<y0.length;i++)
+	    tmp[i] = y0[i] + (k1[i] + 2*k2[i] + 2*k3[i] + k4[i])*dt/6;
+	return tmp;
+    }
+    this.solve = function(fun_f,alpha,t,solver){
+	var y = [];
+	y.push(alpha);
+	for(var i = 1; i<t.length;i++){
+	    if(solver === "euler")
+		y.push(this.euler(fun_f,y[i-1],t[i-1],t[i] - t[i-1]));
+	    else if(solver === "rk4")
+		y.push(this.rk4(fun_f,y[i-1],t[i-1],t[i] - t[i-1]));
+	}
+	return y;
+    }
+}
+
+function enonlinear(){
+    this.newton = function(fun_f,fun_df,x0,maxIt,prec){
+	var f,df,x,tmp;
+	x = x0;
+	for(var i = 0;i<maxIt;i++){
+	    f = fun_f(x);
+	    df = fun_df(x);
+	    tmp = x - f/df;
+	    if(Math.abs(x - tmp) < prec*Math.abs(x))
+		break;
+	    x = tmp;
+	}
+	return x;
+    }
+    this.secant = function(fun_f,x0,x1,maxIt,prec){
+	var f0,f1;
+	var tmp;
+	for(var i = 0;i<maxIt;i++){
+	    f0 = fun_f(x0);
+	    f1 = fun_f(x1);
+	    tmp = x1 - f1*(x1 - x0)/(f1 - f0);
+	    if(Math.abs(x1 - tmp) < prec*Math.abs(x1))
+		break;
+	    x0 = x1;
+	    x1 = tmp;
+	}
+	return x1;
+    }
+    this.bisection = function(fun_f,a,b,maxIt,prec){
+	var fa,ftmp;
+	var tmp;
+	for(var i = 0;i<maxIt;i++){
+	    fa = fun_f(a);
+	    tmp = (a + b)/2;
+	    ftmp = fun_f(tmp);
+	    if(ftmp==0)
+		break;
+	    if(Math.abs(tmp-a)<prec*Math.abs(a))
+		break;
+	    if(fa*ftmp < 0)
+		b = tmp;
+	    else
+		a = tmp;
+	}
+	return tmp;
+    }
+}
