@@ -420,3 +420,52 @@ function enonlinear(){
 	return tmp;
     }
 }
+
+function einterpolation(){
+    this.lagrange = function(xdata,ydata){
+	var out = new epoly([0]);
+	var N = xdata.length;
+	var tmp1,tmp2;
+	var s;
+	tmp2 = new epoly([1,1]);
+	for(var i = 0;i<N;i++){
+	    tmp1 = new epoly([1])
+	    s = 1;
+	    for(var j = 0;j<N;j++){
+		if(i!=j){
+		    tmp2.coeffs[0] = -xdata[j];
+		    tmp1 = tmp1.mul(tmp2);
+		    s *= (xdata[i] - xdata[j]);
+		}
+	    }
+	    tmp1 = tmp1.scale(ydata[i]/s);
+	    out = out.add(tmp1);
+	}
+	return out;
+    }
+    this.newton_divided_differences = function(xdata,ydata){
+	var N = xdata.length;
+	var table = [];
+	var out = new epoly([ydata[0]]);
+	var tmp1 = new epoly([1,1]);
+	var tmp2;
+	for(var i = 0;i<N;i++)
+	    table.push(ydata[i]);
+	for(var i = 1;i<N;i++){
+	    for(var j = 0; j<N-i;j++)
+		table[j] = ((table[j+1] - table[j])/(xdata[j+i] - xdata[j]));
+	    tmp2 = new epoly([1]);
+	    for(var j = 0;j<i;j++){
+		tmp1.coeffs[0] = -xdata[j];
+		tmp2 = tmp2.mul(tmp1);
+	    }
+	    tmp2 = tmp2.scale(table[0])
+	    out = out.add(tmp2);
+	}
+	return out;
+    }
+}
+
+var ei = new einterpolation();
+var p = ei.newton_divided_differences([2,2.75,4],[1/2,1/2.75,0.25]);
+console.log(p.to_string());
