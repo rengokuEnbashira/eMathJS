@@ -5,6 +5,18 @@ function ematrix(rows,cols){
     for(var i = 0;i<rows;i++)
 	this.data.push(new Array(cols));
 
+    this.get_row = function(idx){
+	var tmp = [];
+	for(var i = 0;i<this.cols;i++)
+	    tmp.add(this.data[idx][i]);
+	return tmp;
+    }
+    this.get_col = function(idx){
+	var tmp = [];
+	for(var i = 0;i<this.rows;i++)
+	    tmp.add(this.data[i][idx]);
+	return tmp;
+    }
     this.zeros = function(){
 	for(var i = 0;i<this.rows;i++)
 	    for(var j = 0;j<this.cols;j++)
@@ -210,6 +222,29 @@ function ematrix(rows,cols){
 	    eig_val = qr[1].dot(qr[0]);
 	}
 	return [eig_val,eig_vec];
+    }
+    this.sum = function(axis){
+	var out;
+	var s ;
+	if(axis == 0){
+	    out = new ematrix(1,this.cols);
+	    for(var j = 0;j<this.cols;j++){
+		s = 0;
+		for(var i = 0;i<this.rows;i++)
+		    s += this.data[i][j];
+		out.data[0][j] = s;
+	    }
+	}
+	else if(axis == 1){
+	    out = new ematrix(this.rows,1);
+	    for(var i = 0;i<this.rows;i++){
+		s = 0;
+		for(var j = 0;j<this.cols;j++)
+		    s += this.data[i][j];
+		out.data[i][0] = s;
+	    }
+	}
+	return out;
     }
 }
 
@@ -466,6 +501,43 @@ function einterpolation(){
     }
 }
 
-var ei = new einterpolation();
-var p = ei.newton_divided_differences([2,2.75,4],[1/2,1/2.75,0.25]);
+function eregression(){
+    this.linear = function(xdata,ydata,degree){
+	var A = new ematrix(degree+1,degree+1);
+	var b = new ematrix(degree+1,1);
+	var x = new ematrix(1,xdata.length);
+	var xtmp = new ematrix(1,xdata.length);
+	var ytmp = new ematrix(1,xdata.length);
+	xtmp.ones();
+	x.data[0] = xdata;
+	ytmp.data[0] = ydata;
+	for(var i = 0;i<=degree;i++){
+	    A.data[0][i] = xtmp.sum(1).data[0][0];
+	    A.data[i][0] = A.data[0][i];
+	    xtmp = xtmp.mul(x);
+	}
+	b.data[0][0] = ytmp.sum(1).data[0][0];
+	ytmp = ytmp.mul(x);
+	for(var i = 1;i<=degree;i++){
+	    for(var j = i;j<degree;j++){
+		A.data[i][j] = A.data[i-1][j+1];
+		A.data[j][i] = A.data[i][j];
+	    }
+	    A.data[i][degree] = xtmp.sum(1).data[0][0];
+	    A.data[degree][i] = A.data[i][degree];
+	    xtmp = xtmp.mul(x);
+	    b.data[i][0] = ytmp.sum(1).data[0][0];
+	    ytmp = ytmp.mul(x);
+	}
+	console.log(A.to_string());
+	console.log(b.to_string());
+	return new epoly(A.inv().dot(b).transpose().data[0]);
+    }
+}
+
+var er = new eregression();
+var x = [0.0, 0.2631578947368421, 0.5263157894736842, 0.7894736842105263, 1.0526315789473684, 1.3157894736842104, 1.5789473684210527, 1.8421052631578947, 2.1052631578947367, 2.3684210526315788, 2.631578947368421, 2.894736842105263, 3.1578947368421053, 3.4210526315789473, 3.6842105263157894, 3.9473684210526314, 4.2105263157894735, 4.473684210526316, 4.7368421052631575, 5.0];
+var y =[8.379032812903231, 8.592865671550218, 11.677514988116073, 16.156261589985604, 10.065228627152848, 14.880424904307379, 16.08654375947517, 19.14065641663596, 20.549646005098005, 18.350724868168694, 30.452377198518892, 27.331342363191908, 34.014321397561076, 44.673246174886096, 53.88103881564418, 56.04284856961059, 73.23745458654209, 81.98977722697578, 93.83518334988348, 111.94605515415141];
+
+var p = er.linear(x,y,1);
 console.log(p.to_string());
